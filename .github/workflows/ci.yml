@@ -119,8 +119,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+            ghcr.io/vswashah/fleet-telemetry:latest
+            ghcr.io/vswashah/fleet-telemetry:sha-${{ github.sha }}
 
   deploy:
     name: Deploy to Kubernetes
