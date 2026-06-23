@@ -1,0 +1,12 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fleet-config
+  namespace: fleet-telemetry
+data:
+  KAFKA_BOOTSTRAP_SERVERS: "kafka:29092"
+  KAFKA_TOPIC: "vehicle-telemetry"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_TTL: "300"
+  METRICS_PORT: "8000"
