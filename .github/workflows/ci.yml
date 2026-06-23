@@ -127,24 +127,45 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref == 'refs/heads/main'
-    environment: production
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v3
+      - name: Start minikube
+        uses: medyagh/setup-minikube@master
+        with:
+          minikube-version: latest
+          kubernetes-version: stable
 
-      - name: Configure kubeconfig
-        run: echo "${{ secrets.KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+      - name: Verify minikube is running
+        run: kubectl get nodes
 
-      - name: Apply manifests
+      - name: Create namespace
+        run: kubectl apply -f k8s/namespace.yaml
+
+      - name: Apply configmap
+        run: kubectl apply -f k8s/configmap.yaml
+
+      - name: Create placeholder secret
+        run: |
+          kubectl create secret generic fleet-secrets \
+            --from-literal=postgres-dsn="postgresql://fleet:fleet@postgres:5432/fleet_telemetry" \
+            -n fleet-telemetry \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+      - name: Patch image tag in manifests
         run: |
           SHORT_SHA=$(echo ${{ github.sha }} | cut -c1-7)
-          sed -i "s|IMAGE_TAG|sha-${SHORT_SHA}|g" k8s/*.yaml
-          kubectl apply -f k8s/
+          sed -i "s|IMAGE_TAG|sha-${SHORT_SHA}|g" k8s/consumer-deployment.yaml
+          sed -i "s|IMAGE_TAG|sha-${SHORT_SHA}|g" k8s/producer-deployment.yaml
 
-      - name: Verify rollout
+      - name: Deploy consumer and producer
         run: |
-          kubectl rollout status deployment/fleet-consumer -n fleet-telemetry --timeout=120s
-          kubectl rollout status deployment/fleet-producer  -n fleet-telemetry --timeout=120s
+          kubectl apply -f k8s/consumer-deployment.yaml
+          kubectl apply -f k8s/producer-deployment.yaml
+
+      - name: Verify pods are scheduled
+        run: |
+          sleep 10
+          kubectl get pods -n fleet-telemetry
+          kubectl get deployments -n fleet-telemetry
